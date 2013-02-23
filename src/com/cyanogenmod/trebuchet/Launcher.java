@@ -989,7 +989,7 @@ public final class Launcher extends Activity
             mSearchDropTargetBar.setup(this, dragController);
         }
 
-        if(Settings.System.getFloat(getContentResolver(), "navigation_bar_alpha", 0.8f) < 1) {
+        if(Settings.System.getFloat(getContentResolver(), "navigation_bar_alpha", 1.0f) < 1) {
             // remove the nasty backdrops!
             mDragLayer.setBackground(null);
         }
