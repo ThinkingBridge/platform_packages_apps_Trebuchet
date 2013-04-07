@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2009 The Android Open Source Project
+<!-- Copyright (C) 2013 The CyanogenMod Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -42,58 +42,6 @@
         launcher:screen="2"
         launcher:x="0"
         launcher:y="3" />
-    
-    <folder
-        launcher:screen="2"
-        launcher:x="3"
-        launcher:y="3"
-        launcher:title="@string/default_folder_name" >
-
-        <favorite
-            launcher:packageName="com.google.android.apps.maps"
-            launcher:className="com.google.android.maps.MapsActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.gm"
-            launcher:className="com.google.android.gm.GmailActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.apps.plus"
-            launcher:className="com.google.android.apps.plus.phone.HomeActivity" />
-
-        <favorite
-            launcher:packageName="com.android.vending"
-            launcher:className="com.android.vending.AssetBrowserActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.music" 
-            launcher:className="com.android.music.activitymanagement.TopLevelActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.apps.books"
-            launcher:className="com.google.android.apps.books.app.BooksActivity" />
-
-        <favorite 
-            launcher:packageName="com.google.android.youtube"
-            launcher:className="com.google.android.youtube.app.honeycomb.Shell$HomeActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.videos"
-            launcher:className="com.google.android.youtube.videos.EntryPoint" />
-
-        <favorite
-            launcher:packageName="com.google.android.talk"
-            launcher:className="com.google.android.talk.SigningInActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.calendar"
-            launcher:className="com.android.calendar.AllInOneActivity" />
-
-        <favorite
-            launcher:packageName="com.google.android.apps.plus"
-            launcher:className="com.google.android.apps.plus.phone.ConversationListActivity" />
-
-    </folder>
 
     <!-- Right screen [3] -->
     <favorite
@@ -113,15 +61,15 @@
 
     <!-- Hotseat (We use the screen as the position of the item in the hotseat) -->
     <favorite
-        launcher:packageName="com.android.contacts"
-        launcher:className="com.android.contacts.activities.DialtactsActivity"
+        launcher:packageName="com.android.email"
+        launcher:className="com.android.email.activity.Welcome"
         launcher:container="-101"
         launcher:screen="0"
         launcher:x="0"
         launcher:y="0" />
     <favorite
-        launcher:packageName="com.android.contacts"
-        launcher:className="com.android.contacts.activities.PeopleActivity"
+        launcher:packageName="com.android.calendar"
+        launcher:className="com.android.calendar.AllInOneActivity"
         launcher:container="-101"
         launcher:screen="0"
         launcher:x="1"
@@ -132,8 +80,8 @@
         launcher:x="2"
         launcher:y="0" />
     <favorite
-        launcher:packageName="com.android.mms"
-        launcher:className="com.android.mms.ui.ConversationList"
+        launcher:packageName="com.android.contacts"
+        launcher:className="com.android.contacts.activities.PeopleActivity"
         launcher:container="-101"
         launcher:screen="0"
         launcher:x="3"
