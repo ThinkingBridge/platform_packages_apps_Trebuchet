@@ -846,6 +846,7 @@ public class Workspace extends PagedView
 
     @Override
     protected void determineScrollingStart(MotionEvent ev) {
+        if (isSmall()) return;
         if (!isFinishedSwitchingState()) return;
 
         float deltaX = Math.abs(ev.getX() - mXDown);
