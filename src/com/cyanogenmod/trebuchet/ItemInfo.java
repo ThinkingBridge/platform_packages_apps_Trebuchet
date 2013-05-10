@@ -96,7 +96,7 @@ class ItemInfo {
     /**
      * Title of the item
      */
-    CharSequence title = "";
+    CharSequence title;
 
     /**
      * The position of the item in a drag-and-drop operation.
