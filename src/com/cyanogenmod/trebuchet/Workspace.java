@@ -81,6 +81,8 @@ public class Workspace extends PagedView
         DragController.DragListener, LauncherTransitionable, ViewGroup.OnHierarchyChangeListener {
     private static final String TAG = "Trebuchet.Workspace";
 
+    private static final boolean DEBUG_CHANGE_STATE_ANIMATIONS = false;
+
     // Y rotation to apply to the workspace screens
     private static final float WORKSPACE_ROTATION = 12.5f;
     private static final float WORKSPACE_OVERSCROLL_ROTATION = 24f;
@@ -163,6 +165,8 @@ public class Workspace extends PagedView
     private SpringLoadedDragController mSpringLoadedDragController;
     private float mSpringLoadedShrinkFactor;
 
+    private static final int DEFAULT_HOMESCREEN = 2;
+
     private static final int DEFAULT_CELL_COUNT_X = 4;
     private static final int DEFAULT_CELL_COUNT_Y = 4;
 
@@ -176,8 +180,6 @@ public class Workspace extends PagedView
     boolean mAnimatingViewIntoPlace = false;
     boolean mIsDragOccuring = false;
     boolean mChildrenLayersEnabled = true;
-
-    private boolean mIsLandscape;
 
     /** Is the user is dragging an item near the edge of a page? */
     private boolean mInScrollArea = false;
@@ -305,7 +307,6 @@ public class Workspace extends PagedView
     private boolean mStretchScreens;
     private boolean mShowSearchBar;
     private boolean mShowHotseat;
-    private boolean mResizeAnyWidget;
     private boolean mHideIconLabels;
     private boolean mHideDockIconLabels;
     private boolean mScrollWallpaper;
@@ -386,12 +387,17 @@ public class Workspace extends PagedView
 
         // Preferences
         mNumberHomescreens = PreferencesProvider.Interface.Homescreen.getNumberHomescreens();
-        mDefaultHomescreen = PreferencesProvider.Interface.Homescreen.getDefaultHomescreen(mNumberHomescreens / 2);
+        mDefaultHomescreen = PreferencesProvider.Interface.Homescreen.getDefaultHomescreen(DEFAULT_HOMESCREEN);
         if (mDefaultHomescreen >= mNumberHomescreens) {
             mDefaultHomescreen = mNumberHomescreens / 2;
         }
 
         mStretchScreens = PreferencesProvider.Interface.Homescreen.getStretchScreens();
+        // Large screen has calculated dimensions always, unless specified by config_workspaceTabletGrid option
+        boolean workspaceTabletGrid = getResources().getBoolean(R.bool.config_workspaceTabletGrid);
+        if (LauncherApplication.isScreenLarge() && workspaceTabletGrid == false) {
+            mStretchScreens = false;
+        }
         mShowSearchBar = PreferencesProvider.Interface.Homescreen.getShowSearchBar();
         mShowHotseat = PreferencesProvider.Interface.Dock.getShowDock();
         mHideIconLabels = PreferencesProvider.Interface.Homescreen.getHideIconLabels();
@@ -1559,18 +1565,22 @@ public class Workspace extends PagedView
                     // On large screens we need to fade the page as it nears its leftmost position
                     alpha = mLeftScreenAlphaInterpolator.getInterpolation(1 - scrollProgress);
                 }
-
                 cl.setTranslationX(translationX);
                 cl.setScaleX(scale);
                 cl.setScaleY(scale);
                 cl.setAlpha(alpha);
 
                 // If the view has 0 alpha, we set it to be invisible so as to prevent
-                // it from accepting touches
+                // it from accepting touches. Move the view to its original position to
+                // prevent overlap between views
                 if (alpha <= 0) {
                     cl.setVisibility(INVISIBLE);
+                    cl.setTranslationX(0);
                 } else if (cl.getVisibility() != VISIBLE) {
                     cl.setVisibility(VISIBLE);
+                }
+                if (mFadeInAdjacentScreens && !isSmall()) {
+                    setCellLayoutFadeAdjacent(cl, scrollProgress);
                 }
             }
         }
@@ -2209,89 +2219,80 @@ public class Workspace extends PagedView
                 }
             }
 
-            // Zoom Effects
-            if ((mTransitionEffect == TransitionEffect.ZoomIn ||
-                    mTransitionEffect == TransitionEffect.ZoomOut) && stateIsNormal) {
-                if (i != mCurrentPage) {
-                    scale = (mTransitionEffect == TransitionEffect.ZoomIn ? 0.5f : 1.1f);
+            if (stateIsNormal) {
+                // Zoom Effects
+                if ((mTransitionEffect == TransitionEffect.ZoomIn || mTransitionEffect == TransitionEffect.ZoomOut)) {
+                    if (i != mCurrentPage) {
+                        scale = (mTransitionEffect == TransitionEffect.ZoomIn ? 0.5f : 1.1f);
+                    }
                 }
-            }
 
-            // Stack Effect
-            if (mTransitionEffect == TransitionEffect.Stack) {
-                if (stateIsSpringLoaded) {
-                    cl.setVisibility(VISIBLE);
-                } else if (stateIsNormal) {
+                // Stack Effect
+                if (mTransitionEffect == TransitionEffect.Stack) {
                     if (i <= mCurrentPage) {
                         cl.setVisibility(VISIBLE);
+                        cl.setAlpha(1.0f);
+                        if (mFadeInAdjacentScreens) {
+                            setCellLayoutFadeAdjacent(cl, 0.0f);
+                        }
                     } else {
                         cl.setVisibility(INVISIBLE);
+                        cl.setAlpha(0.0f);
+                        if (mFadeInAdjacentScreens) {
+                            setCellLayoutFadeAdjacent(cl, 1.0f);
+                        }
                     }
                 }
-            }
 
 
-            // Flip Effect
-            if (mTransitionEffect == TransitionEffect.Flip) {
-                if (stateIsSpringLoaded) {
-                    cl.setVisibility(VISIBLE);
-                } else if (stateIsNormal) {
+                // Flip Effect
+                if (mTransitionEffect == TransitionEffect.Flip || mTransitionEffect == TransitionEffect.Accordion) {
                     if (i == mCurrentPage) {
                         cl.setVisibility(VISIBLE);
                     } else {
                         cl.setVisibility(INVISIBLE);
                     }
                 }
-            }
 
-            // Rotate Effects
-            if ((mTransitionEffect == TransitionEffect.RotateUp ||
-                    mTransitionEffect == TransitionEffect.RotateDown) && stateIsNormal) {
-                boolean up = mTransitionEffect == TransitionEffect.RotateUp;
-                rotation = (up ? WORKSPACE_ROTATION : -WORKSPACE_ROTATION) * Math.max(-1.0f, Math.min(1.0f , mCurrentPage - i));
-                translationX = cl.getMeasuredWidth() * (Math.max(-1.0f, Math.min(1.0f, i - mCurrentPage))) +
-                        (up ? -1.0f : 1.0f) * (float) Math.sin(Math.toRadians((double) rotation)) *
-                        (mRotatePivotPoint + cl.getMeasuredHeight() * 0.5f);
-                translationY += (up ? -1.0f : 1.0f) * (1.0f - Math.cos(Math.toRadians((double) rotation))) *
-                        (mRotatePivotPoint + cl.getMeasuredHeight() * 0.5f);
-            }
-
-            // Cube Effects
-            if ((mTransitionEffect == TransitionEffect.CubeIn || mTransitionEffect == TransitionEffect.CubeOut) && stateIsNormal) {
-                if (i < mCurrentPage) {
-                    rotationY = mTransitionEffect == TransitionEffect.CubeOut ? -90.0f : 90.0f;
-                } else if (i > mCurrentPage) {
-                    rotationY = mTransitionEffect == TransitionEffect.CubeOut ? 90.0f : -90.0f;
+                // Rotate Effects
+                if ((mTransitionEffect == TransitionEffect.RotateUp || mTransitionEffect == TransitionEffect.RotateDown)) {
+                    boolean up = mTransitionEffect == TransitionEffect.RotateUp;
+                    rotation = (up ? WORKSPACE_ROTATION : -WORKSPACE_ROTATION) * Math.max(-1.0f, Math.min(1.0f , mCurrentPage - i));
+                    translationX = cl.getMeasuredWidth() * (Math.max(-1.0f, Math.min(1.0f, i - mCurrentPage))) +
+                            (up ? -1.0f : 1.0f) * (float) Math.sin(Math.toRadians((double) rotation)) *
+                            (mRotatePivotPoint + cl.getMeasuredHeight() * 0.5f);
+                    translationY += (up ? -1.0f : 1.0f) * (1.0f - Math.cos(Math.toRadians((double) rotation))) *
+                            (mRotatePivotPoint + cl.getMeasuredHeight() * 0.5f);
                 }
-            }
 
-            // Cylinder Effects
-            if ((mTransitionEffect == TransitionEffect.CylinderIn || mTransitionEffect == TransitionEffect.CylinderOut) && stateIsNormal) {
-                if (i < mCurrentPage) {
-                    rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? -WORKSPACE_ROTATION : WORKSPACE_ROTATION;
-                } else if (i > mCurrentPage) {
-                    rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? WORKSPACE_ROTATION : -WORKSPACE_ROTATION;
+                // Cube Effects
+                if ((mTransitionEffect == TransitionEffect.CubeIn || mTransitionEffect == TransitionEffect.CubeOut)) {
+                    if (i < mCurrentPage) {
+                        rotationY = mTransitionEffect == TransitionEffect.CubeOut ? -90.0f : 90.0f;
+                    } else if (i > mCurrentPage) {
+                        rotationY = mTransitionEffect == TransitionEffect.CubeOut ? 90.0f : -90.0f;
+                    }
                 }
-            }
 
-            // Carousel Effects
-            if (mTransitionEffect == TransitionEffect.CarouselLeft || mTransitionEffect == TransitionEffect.CarouselRight && stateIsNormal) {
-                if (i < mCurrentPage) {
-                    rotationY = 90.0f;
-                } else if (i > mCurrentPage) {
-                    rotationY = -90.0f;
+                // Cylinder Effects
+                if ((mTransitionEffect == TransitionEffect.CylinderIn || mTransitionEffect == TransitionEffect.CylinderOut)) {
+                    if (i < mCurrentPage) {
+                        rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? -WORKSPACE_ROTATION : WORKSPACE_ROTATION;
+                        cl.setPivotX(cl.getMeasuredWidth());
+                        cl.setTranslationX(0);
+                    } else if (i > mCurrentPage) {
+                        rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? WORKSPACE_ROTATION : -WORKSPACE_ROTATION;
+                        cl.setPivotX(0);
+                        cl.setTranslationX(0);
+                    }
                 }
-            }
 
-            // Accordion Effect
-            if (mTransitionEffect == TransitionEffect.Accordion) {
-                if (stateIsSpringLoaded) {
-                    cl.setVisibility(VISIBLE);
-                } else if (stateIsNormal) {
-                    if (i == mCurrentPage) {
-                        cl.setVisibility(VISIBLE);
-                    } else {
-                        cl.setVisibility(INVISIBLE);
+                // Carousel Effects
+                if (mTransitionEffect == TransitionEffect.CarouselLeft || mTransitionEffect == TransitionEffect.CarouselRight) {
+                    if (i < mCurrentPage) {
+                        rotationY = 90.0f;
+                    } else if (i > mCurrentPage) {
+                        rotationY = -90.0f;
                     }
                 }
             }
@@ -2300,6 +2301,15 @@ public class Workspace extends PagedView
                 cl.setCameraDistance(1280 * mDensity);
                 cl.setPivotX(cl.getMeasuredWidth() * 0.5f);
                 cl.setPivotY(cl.getMeasuredHeight() * 0.5f);
+                cl.setVisibility(VISIBLE);
+
+                // Stack Effect
+                if (mTransitionEffect == TransitionEffect.Stack) {
+                    cl.setAlpha(1.0f);
+                    if (mFadeInAdjacentScreens) {
+                        setCellLayoutFadeAdjacent(cl, 0.0f);
+                    }
+                }
             }
 
             // Determine the pages alpha during the state transition
@@ -2347,8 +2357,22 @@ public class Workspace extends PagedView
         }
 
         if (animated) {
+            if (DEBUG_CHANGE_STATE_ANIMATIONS) Log.d(TAG, oldState + " > " + state);
             for (int index = 0; index < getChildCount(); index++) {
                 final int i = index;
+
+                if (DEBUG_CHANGE_STATE_ANIMATIONS) {
+                    Log.d(TAG, i + " alpha: " + mOldAlphas[i] + " > " + mNewAlphas[i]);
+                    Log.d(TAG, i + " translationX: " + mOldTranslationXs[i] + " > " + mNewTranslationXs[i]);
+                    Log.d(TAG, i + " translationY: " + mOldTranslationYs[i] + " > " + mNewTranslationYs[i]);
+                    Log.d(TAG, i + " scaleX: " + mOldScaleXs[i] + " > " + mNewScaleXs[i]);
+                    Log.d(TAG, i + " scaleY: " + mOldScaleYs[i] + " > " + mNewScaleYs[i]);
+                    Log.d(TAG, i + " alpha: " + mOldAlphas[i] + " > " + mNewAlphas[i]);
+                    Log.d(TAG, i + " backgroundAlpha: " + mOldBackgroundAlphas[i] + " > " + mNewBackgroundAlphas[i]);
+                    Log.d(TAG, i + " rotation: " + mOldRotations[i] + " > " + mNewRotations[i]);
+                    Log.d(TAG, i + " rotationY: " + mOldRotationYs[i] + " > " + mNewRotationYs[i]);
+                }
+
                 final CellLayout cl = (CellLayout) getChildAt(i);
                 float currentAlpha = cl.getShortcutsAndWidgets().getAlpha();
                 if (mOldAlphas[i] == 0 && mNewAlphas[i] == 0) {
@@ -4010,8 +4034,6 @@ public class Workspace extends PagedView
         // needed
         updateChildrenLayersEnabled(false);
         setupWallpaper();
-
-        mIsLandscape = LauncherApplication.isScreenLandscape(mLauncher);
     }
 
     void setupWallpaper() {
@@ -4454,7 +4476,7 @@ public class Workspace extends PagedView
     }
 
     void moveToDefaultScreen(boolean animate) {
-        if (!isSmall()) {
+        if (!isSmall() && !mIsSwitchingState) {
             if (animate) {
                 snapToPage(mDefaultHomescreen);
             } else {
