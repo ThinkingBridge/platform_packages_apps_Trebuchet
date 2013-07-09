@@ -52,7 +52,7 @@
         launcher:y="3" />
     <favorite
         launcher:packageName="com.android.settings"
-        launcher:className="com.android.settings.Settings"
+        launcher:className="com.android.settings.MainSettings"
         launcher:screen="3"
         launcher:x="2"
         launcher:y="3" />
