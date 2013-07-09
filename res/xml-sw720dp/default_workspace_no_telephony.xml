@@ -32,10 +32,10 @@
         launcher:packageName="com.android.deskclock"
         launcher:className="com.android.alarmclock.AnalogAppWidgetProvider"
         launcher:screen="2"
-        launcher:x="0"
+        launcher:x="1"
         launcher:y="0"
-        launcher:spanX="3"
-        launcher:spanY="4" />
+        launcher:spanX="2"
+        launcher:spanY="2" />
     <favorite
         launcher:packageName="com.android.camera"
         launcher:className="com.android.camera.Camera"
